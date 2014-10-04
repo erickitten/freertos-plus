@@ -10,6 +10,8 @@
 #include "task.h"
 #include "host.h"
 
+#include  "customfunc.h"
+
 typedef struct {
 	const char *name;
 	cmdfunc *fptr;
@@ -149,68 +151,41 @@ void test_command(int n, char *argv[]) {
 
     fio_printf(1, "\r\n");
 
-    handle = host_action(SYS_OPEN, "output/test", 8);//a
+    handle = host_action(SYS_OPEN, "output/test", 4);//w
     if(handle == -1) {	
         fio_printf(1, "Open file error!\n\r");
         return;
     }
 
 	char buffer[128] = "test function : arg = ";
-	if(argv[1] != NULL){
-		arg = atoi(argv[1]);
-		strcat(buffer,argv[1]);
-	}else{
+	//if(argv[1] != NULL){
+		//arg = atoi(argv[1]);
+		//strcat(buffer,argv[1]);
+	//}else{
 		strcat(buffer,"10 (default)");
-	}
+	//}
 
 	//prime check	
-	int flag = 0;
-	int i;
-	for(i=2;i<=(arg>>1);i++){
-		if(arg%i==0){
-			flag=1;
-			break;
-		}
-	}
-	if(flag){
+	if(prime_check(arg)){
 		strcat(buffer,"\narg is a prime");
 	}else{
 		strcat(buffer,"\narg is not a prime");
 	}
-/*	
-	//fibonacci
-	int fib = 0;
-	if(arg <=0){fib=0;}
-	else if(arg-- == 1){fib=1;}
-	else{
-		int a=1,b=1;
-		while(1){
-			if(arg-- == 1){
-				fib = b;
-				break;
-			};
-			a += b;
-			if(arg-- == 1){
-                fib = a;
-                break;
-            };
-			b += a;
-		}
-	}
-*/
-	//strcat(buffer,"\nfib(arg) is ");
-	//char temp[15];
-	//strcat(buffer,itoa(temp,fib,10));
+	
+	//fib
+	strcat(buffer,"\nfib(arg) is ");
+	char temp[15];
+	sprintf(temp,"%d",fibonacci(arg));
+	strcat(buffer,temp);
 	strcat(buffer,"\n");
 	
     error = host_action(SYS_WRITE, handle, (void *)buffer, strlen(buffer));
-/*
     if(error != 0) {
         fio_printf(1, "Write file error! Remain %d bytes didn't write in the file.\n\r", error);
         host_action(SYS_CLOSE, handle);
         return;
     }
-*/
+
     host_action(SYS_CLOSE, handle);
 }
 
