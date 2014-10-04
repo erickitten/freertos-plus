@@ -93,9 +93,13 @@ void command_prompt(void *pvParameters)
 
 	fio_printf(1, "\rWelcome to FreeRTOS Shell\r\n");
 	while(1){
-                fio_printf(1, "%s", hint);
+		fio_printf(1, "%s", hint);
 		fio_read(0, buf, 127);
-	
+
+		if(strlen(buf) == 0){
+			fio_printf(1, "\r\n");
+			continue;
+		}
 		int n=parse_command(buf, argv);
 
 		/* will return pointer to the command function */
@@ -140,7 +144,6 @@ void system_logger(void *pvParameters)
             host_action(SYS_CLOSE, handle);
             return;
         }
-
         vTaskDelay(xDelay);
     }
     
@@ -170,12 +173,10 @@ int main()
 	            (signed portCHAR *) "CLI",
 	            512 /* stack size */, NULL, tskIDLE_PRIORITY + 2, NULL);
 
-#if 0
 	/* Create a task to record system log. */
 	xTaskCreate(system_logger,
 	            (signed portCHAR *) "Logger",
 	            1024 /* stack size */, NULL, tskIDLE_PRIORITY + 1, NULL);
-#endif
 
 	/* Start running the tasks. */
 	vTaskStartScheduler();
