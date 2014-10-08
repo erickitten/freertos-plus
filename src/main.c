@@ -96,7 +96,7 @@ void command_prompt(void *pvParameters)
 		fio_printf(1, "%s", hint);
 		fio_read(0, buf, 127);
 
-		if(strlen(buf) == 0){
+		if(buf[0] == '\0'){//empty string
 			fio_printf(1, "\r\n");
 			continue;
 		}

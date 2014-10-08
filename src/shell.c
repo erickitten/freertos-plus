@@ -157,29 +157,21 @@ void test_command(int n, char *argv[]) {
         return;
     }
 
-	char buffer[128] = "test function : arg = ";
+	char buffer[128];
+	int strcount;
+
 	//if(argv[1] != NULL){
 		//arg = atoi(argv[1]);
 		//strcat(buffer,argv[1]);
 	//}else{
-		strcat(buffer,"10 (default)");
+		strcount = sprintf(buffer,"test function : arg = %d",arg/*default*/);
 	//}
 
 	//prime check	
-	if(prime_check(arg)){
-		strcat(buffer,"\narg is a prime");
-	}else{
-		strcat(buffer,"\narg is not a prime");
-	}
-	
+	strcount += sprintf((buffer+strcount),"\n%d is %sa prime",arg,prime_check(arg)?"":"not ");
 	//fib
-	strcat(buffer,"\nfib(arg) is ");
-	char temp[15];
-	sprintf(temp,"%d",fibonacci(arg));
-	strcat(buffer,temp);
-	strcat(buffer,"\n");
-	
-    error = host_action(SYS_WRITE, handle, (void *)buffer, strlen(buffer));
+	strcount += sprintf((buffer+strcount),"\nfib(%d) is %d\n",arg,fibonacci(arg));
+    error = host_action(SYS_WRITE, handle, (void *)buffer,strcount);
     if(error != 0) {
         fio_printf(1, "Write file error! Remain %d bytes didn't write in the file.\n\r", error);
         host_action(SYS_CLOSE, handle);

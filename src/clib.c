@@ -41,7 +41,7 @@ size_t fio_printf(int fd, const char *format, ...){
 }
 
 int sprintf(char *dest, const char *format, ...){
-        int i,count=0, p;
+        int i, p;
 
         va_list(v1);
         va_start(v1, format);
@@ -54,7 +54,8 @@ int sprintf(char *dest, const char *format, ...){
                 if(format[i]=='%'){
                         switch(format[i+1]){
                                 case '%':
-                                        dest[p++]='%'; break;
+                                        dest[p++]='%';
+					break;
                                 case 'd':
                                 case 'x':
 				case 'X':
@@ -64,14 +65,16 @@ int sprintf(char *dest, const char *format, ...){
 						tmpcharp = utoa(format[i+1]=='X'?"0123456789ABCDEF":"0123456789abcdef" ,(unsigned)tmpint, 10);
 					else
 						tmpcharp = itoa(format[i+1]=='X'?"0123456789ABCDEF":"0123456789abcdef", tmpint, format[i+1]=='d'?10: 16);
-                                        //fio_write(fd, tmpcharp, 3);i
-					for(;*tmpcharp;++tmpcharp, ++p)
+                                        //fio_write(fd, tmpcharp, 3);i					
+					for(;*tmpcharp;++tmpcharp, ++p){
 						dest[p]=*tmpcharp;
+					}
                                         break;
                                 case 's':
                                         tmpcharp = va_arg(v1, char *);
-					for(;*tmpcharp;++tmpcharp, ++p)
+					for(;*tmpcharp;++tmpcharp, ++p){
 						dest[p]=*tmpcharp;
+					}
 					break;
 				case 'c':
 					tmpchar = va_arg(v1, int);
@@ -86,7 +89,7 @@ int sprintf(char *dest, const char *format, ...){
 
         va_end(v1);
 	dest[p]='\0';
-        return count;
+        return p;
 }
 
 
