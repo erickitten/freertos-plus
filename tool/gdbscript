@@ -1,6 +1,8 @@
 file build/main.elf
 target remote :3333
 
-b main
+break main
+continue
+next 8
+call test_command(0,NULL)
 
-c
