@@ -160,17 +160,12 @@ void test_command(int n, char *argv[]) {
 	char buffer[128];
 	int strcount;
 
-	//if(argv[1] != NULL){
-		//arg = atoi(argv[1]);
-		//strcat(buffer,argv[1]);
-	//}else{
-		strcount = sprintf(buffer,"test function : arg = %d",arg/*default*/);
-	//}
-
+	strcount = sprintf(buffer,"test function : arg = %d",arg/*default*/);
 	//prime check	
 	strcount += sprintf((buffer+strcount),"\n%d is %sa prime",arg,prime_check(arg)?"":"not ");
 	//fib
 	strcount += sprintf((buffer+strcount),"\nfib(%d) is %d\n",arg,fibonacci(arg));
+
     error = host_action(SYS_WRITE, handle, (void *)buffer,strcount);
     if(error != 0) {
         fio_printf(1, "Write file error! Remain %d bytes didn't write in the file.\n\r", error);

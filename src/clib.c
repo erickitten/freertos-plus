@@ -64,8 +64,7 @@ int sprintf(char *dest, const char *format, ...){
                                         if(format[i+1]=='u')	
 						tmpcharp = utoa(format[i+1]=='X'?"0123456789ABCDEF":"0123456789abcdef" ,(unsigned)tmpint, 10);
 					else
-						tmpcharp = itoa(format[i+1]=='X'?"0123456789ABCDEF":"0123456789abcdef", tmpint, format[i+1]=='d'?10: 16);
-                                        //fio_write(fd, tmpcharp, 3);i					
+						tmpcharp = itoa(format[i+1]=='X'?"0123456789ABCDEF":"0123456789abcdef", tmpint, format[i+1]=='d'?10: 16);					
 					for(;*tmpcharp;++tmpcharp, ++p){
 						dest[p]=*tmpcharp;
 					}
