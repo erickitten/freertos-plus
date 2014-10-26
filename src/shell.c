@@ -72,8 +72,9 @@ int filedump(const char *filename){
 
 	int fd=fs_open(filename, 0, O_RDONLY);
 
-	if(fd==OPENFAIL)
+	if(fd==OPENFAIL){
 		return 0;
+	}
 
 	fio_printf(1, "\r\n");
 
@@ -100,8 +101,9 @@ void cat_command(int n, char *argv[]){
 		return;
 	}
 
-	if(!filedump(argv[1]))
+	if(!filedump(argv[1])){
 		fio_printf(2, "\r\n%s no such file or directory.\r\n", argv[1]);
+	}
 }
 
 void man_command(int n, char *argv[]){
@@ -113,8 +115,9 @@ void man_command(int n, char *argv[]){
 	char buf[128]="/romfs/manual/";
 	strcat(buf, argv[1]);
 
-	if(!filedump(buf))
+	if(!filedump(buf)){
 		fio_printf(2, "\r\nManual not available.\r\n");
+	}
 }
 
 void host_command(int n, char *argv[]){
