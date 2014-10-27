@@ -14,7 +14,7 @@ struct romfs_fds_t {
     uint32_t cursor;
 };
 
-//file handles unique to romfs
+//opened file handles unique to romfs
 static struct romfs_fds_t romfs_fds[MAX_FDS];
 
 static uint32_t get_unaligned(const uint8_t * d) {
@@ -83,12 +83,12 @@ const uint8_t * romfs_get_file_by_hash(const uint8_t * romfs, uint32_t h, uint32
 }
 
 static int romfs_open(void * opaque, const char * path, int flags, int mode) {
-    uint32_t h = hash_djb2((const uint8_t *) path, -1);
-    const uint8_t * romfs = (const uint8_t *) opaque;
-    const uint8_t * file;
-    int r = -1;
+	uint32_t h = hash_djb2((const uint8_t *) path, -1);
+	const uint8_t * romfs = (const uint8_t *) opaque;
+	const uint8_t * file;
+	int r = -1;
 
-    file = romfs_get_file_by_hash(romfs, h, NULL);
+	file = romfs_get_file_by_hash(romfs, h, NULL);
 
 	if (file) {
 		r = fio_open(romfs_read, NULL, romfs_seek, NULL, NULL);

@@ -15,7 +15,7 @@ struct fs_t {
     void * opaque;
 };
 
-//file system handles
+//registered file system handles
 static struct fs_t fss[MAX_FS];
 
 __attribute__((constructor)) void fs_init() {
@@ -39,28 +39,31 @@ int register_fs(const char * mountpoint, fs_open_t callback, void * opaque) {
 }
 
 int fs_open(const char * path, int flags, int mode) {
-    const char * slash;
-    uint32_t hash;
-    int i;
-//    DBGOUT("fs_open(\"%s\", %i, %i)\r\n", path, flags, mode);
+	const char * slash;
+	uint32_t hash;
+	int i;
+//	DBGOUT("fs_open(\"%s\", %i, %i)\r\n", path, flags, mode);
     
-    while (path[0] == '/')
-        path++;
+	while (path[0] == '/'){
+		path++;
+	}
     
-    slash = strchr(path, '/');
+	slash = strchr(path, '/');
     
-    if (!slash)
-        return -2;
+	if (!slash){
+		return OPENFAIL;
+	}
 
-    hash = hash_djb2((const uint8_t *) path, slash - path);
+	hash = hash_djb2((const uint8_t *) path, slash - path);
 	//hash(fs_path) , that is , the name of fs
-	// /[fs_path]/[file path]
-    path = slash + 1;
+	// @ /[fs_path]/[file path]
+	path = slash + 1;
 
-    for (i = 0; i < MAX_FS; i++) {
-        if (fss[i].hash == hash)
-            return fss[i].cb(fss[i].opaque, path, flags, mode);
-    }
-    
-    return -2;
+	for (i = 0; i < MAX_FS; i++) {
+		if (fss[i].hash == hash){
+			return fss[i].cb(fss[i].opaque, path, flags, mode);
+		}
+	}
+	    
+	return OPENFAIL;
 }
