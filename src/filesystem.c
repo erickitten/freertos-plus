@@ -6,7 +6,7 @@
 #include <string.h>
 #include <hash-djb2.h>
 
-#define MAX_FS 16
+#define MAX_FS 8
 
 struct fs_t {
     uint32_t hash;
@@ -51,6 +51,8 @@ int fs_open(const char * path, int flags, int mode) {
         return -2;
 
     hash = hash_djb2((const uint8_t *) path, slash - path);
+	//hash(fs_path) 
+	// /[fs_path]/[file path]
     path = slash + 1;
 
     for (i = 0; i < MAX_FS; i++) {
