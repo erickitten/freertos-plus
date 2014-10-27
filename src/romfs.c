@@ -8,11 +8,13 @@
 #include "osdebug.h"
 #include "hash-djb2.h"
 
+//file handle unique to romfs
 struct romfs_fds_t {
     const uint8_t * file;
     uint32_t cursor;
 };
 
+//file handles unique to romfs
 static struct romfs_fds_t romfs_fds[MAX_FDS];
 
 static uint32_t get_unaligned(const uint8_t * d) {
@@ -88,18 +90,20 @@ static int romfs_open(void * opaque, const char * path, int flags, int mode) {
 
     file = romfs_get_file_by_hash(romfs, h, NULL);
 
-    if (file) {
-        r = fio_open(romfs_read, NULL, romfs_seek, NULL, NULL);
-        if (r > 0) {
-            romfs_fds[r].file = file;
-            romfs_fds[r].cursor = 0;
-            fio_set_opaque(r, romfs_fds + r);
-        }
-    }
-    return r;
+	if (file) {
+		r = fio_open(romfs_read, NULL, romfs_seek, NULL, NULL);
+		if (r > 0) {
+			//the emptyness of file handle index (r) has been checked in fio_open
+			//thus , there is no need to check if romfs_fds[r] is empty
+			romfs_fds[r].file = file;
+			romfs_fds[r].cursor = 0;
+			fio_set_opaque(r, romfs_fds + r);
+		}
+	}
+	return r;
 }
 
 void register_romfs(const char * mountpoint, const uint8_t * romfs) {
-//    DBGOUT("Registering romfs `%s' @ %p\r\n", mountpoint, romfs);
-    register_fs(mountpoint, romfs_open, (void *) romfs);
+//	DBGOUT("Registering romfs `%s' @ %p\r\n", mountpoint, romfs);
+	register_fs(mountpoint, romfs_open, (void *) romfs);
 }

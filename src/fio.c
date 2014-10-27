@@ -7,6 +7,7 @@
 #include "osdebug.h"
 #include "hash-djb2.h"
 
+//handles of opened files
 static struct fddef_t fio_fds[MAX_FDS];
 
 /* recv_byte is define in main.c */
@@ -70,6 +71,7 @@ static ssize_t stdout_write(void * opaque, const void * buf, size_t count) {
 
 static xSemaphoreHandle fio_sem = NULL;
 
+//init & set stdio to fio_fds
 __attribute__((constructor)) void fio_init() {
     memset(fio_fds, 0, sizeof(fio_fds));
     fio_fds[0].fdread = stdin_read;
@@ -78,15 +80,18 @@ __attribute__((constructor)) void fio_init() {
     fio_sem = xSemaphoreCreateMutex();
 }
 
+//unused?
 struct fddef_t * fio_getfd(int fd) {
     if ((fd < 0) || (fd >= MAX_FDS))
         return NULL;
     return fio_fds + fd;
 }
 
+//check if given file handle is open
 static int fio_is_open_int(int fd) {
-    if ((fd < 0) || (fd >= MAX_FDS))
-        return 0;
+	if ((fd < 0) || (fd >= MAX_FDS)){//bound check
+		return 0;
+	}
     int r = !((fio_fds[fd].fdread == NULL) &&
               (fio_fds[fd].fdwrite == NULL) &&
               (fio_fds[fd].fdseek == NULL) &&
@@ -95,12 +100,14 @@ static int fio_is_open_int(int fd) {
     return r;
 }
 
+//search for empty space in fio_fds to open to
 static int fio_findfd() {
     int i;
     
     for (i = 0; i < MAX_FDS; i++) {
-        if (!fio_is_open_int(i))
+        if (!fio_is_open_int(i)){
             return i;
+	}
     }
     
     return -1;
@@ -114,6 +121,8 @@ int fio_is_open(int fd) {
     return r;
 }
 
+//open a file to an empty space in fio_fds
+//@return index of said space ,as file handle
 int fio_open(fdread_t fdread, fdwrite_t fdwrite, fdseek_t fdseek, fdclose_t fdclose, void * opaque) {
     int fd;
 //    DBGOUT("fio_open(%p, %p, %p, %p, %p)\r\n", fdread, fdwrite, fdseek, fdclose, opaque);
@@ -132,19 +141,27 @@ int fio_open(fdread_t fdread, fdwrite_t fdwrite, fdseek_t fdseek, fdclose_t fdcl
     return fd;
 }
 
+/*
+the actual file IO interface
+
+the file handle (fd) is an index to fio_fds[]
+returned by fio_open()
+which is a newly filled handle found by fio_findfd
+*/
+
 ssize_t fio_read(int fd, void * buf, size_t count) {
     ssize_t r = 0;
 //    DBGOUT("fio_read(%i, %p, %i)\r\n", fd, buf, count);
-    if (fio_is_open_int(fd)) {
-        if (fio_fds[fd].fdread) {
-            r = fio_fds[fd].fdread(fio_fds[fd].opaque, buf, count);
-        } else {
-            r = -3;
-        }
-    } else {
-        r = -2;
-    }
-    return r;
+	if (fio_is_open_int(fd)) {
+		if (fio_fds[fd].fdread) {
+			r = fio_fds[fd].fdread(fio_fds[fd].opaque, buf, count);
+		} else {
+			r = -3;
+		}
+	} else {
+		r = -2;
+	}
+	return r;
 }
 
 ssize_t fio_write(int fd, const void * buf, size_t count) {
@@ -197,10 +214,16 @@ void fio_set_opaque(int fd, void * opaque) {
         fio_fds[fd].opaque = opaque;
 }
 
+
+/*
+devfs (stdio) filesystem
+*/
 #define stdin_hash 0x0BA00421
 #define stdout_hash 0x7FA08308
 #define stderr_hash 0x7FA058A3
 
+//open (alternate) handle of stdio
+//since fio_init have already init them (fio_fds[0~2])
 static int devfs_open(void * opaque, const char * path, int flags, int mode) {
     uint32_t h = hash_djb2((const uint8_t *) path, -1);
 //    DBGOUT("devfs_open(%p, \"%s\", %i, %i)\r\n", opaque, path, flags, mode);
