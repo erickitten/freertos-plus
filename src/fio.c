@@ -16,14 +16,20 @@ void send_byte(char);
 
 enum KeyName{ESC=27, BACKSPACE=127};
 
-/* Imple */
+
+/*
+stdio functions
+
+for reading & writing through serial interface
+ */
+
 static ssize_t stdin_read(void * opaque, void * buf, size_t count) {
-    int i=0, endofline=0, last_chr_is_esc;
-    char *ptrbuf=buf;
-    char ch;
-    while(i < count&&endofline!=1){
-	ptrbuf[i]=recv_byte();
-	switch(ptrbuf[i]){
+	int i=0, endofline=0, last_chr_is_esc;
+	char *ptrbuf=buf;
+	char ch;
+	while(i < count&&endofline!=1){
+		ptrbuf[i]=recv_byte();
+		switch(ptrbuf[i]){
 		case '\r':
 		case '\n':
 			ptrbuf[i]='\0';
@@ -38,6 +44,7 @@ static ssize_t stdin_read(void * opaque, void * buf, size_t count) {
 				}
 				continue;
 			}
+			break;
 		case ESC:
 			last_chr_is_esc=1;
 			continue;
@@ -52,22 +59,28 @@ static ssize_t stdin_read(void * opaque, void * buf, size_t count) {
 			continue;
 		default:
 			last_chr_is_esc=0;
+			break;
 	}
 	send_byte(ptrbuf[i]);
 	++i;
-    }
-    return i;
+	}
+	return i;
 }
 
 static ssize_t stdout_write(void * opaque, const void * buf, size_t count) {
-    int i;
-    const char * data = (const char *) buf;
+	int i;
+	const char * data = (const char *) buf;
     
-    for (i = 0; i < count; i++)
-	send_byte(data[i]);
-    
-    return count;
+	for (i = 0; i < count; i++){
+		send_byte(data[i]);
+	}   
+	return count;
 }
+
+
+/*
+open file functions
+*/
 
 static xSemaphoreHandle fio_sem = NULL;
 
@@ -136,8 +149,9 @@ int fio_open(fdread_t fdread, fdwrite_t fdwrite, fdseek_t fdseek, fdclose_t fdcl
     return fd;
 }
 
+
 /*
-the actual file IO interface
+file IO interface
 
 the file handle (fd) is an index to fio_fds[]
 returned by fio_open()
@@ -160,53 +174,55 @@ ssize_t fio_read(int fd, void * buf, size_t count) {
 }
 
 ssize_t fio_write(int fd, const void * buf, size_t count) {
-    ssize_t r = 0;
-//    DBGOUT("fio_write(%i, %p, %i)\r\n", fd, buf, count);
-    if (fio_is_open_int(fd)) {
-	if (fio_fds[fd].fdwrite) {
-	    r = fio_fds[fd].fdwrite(fio_fds[fd].opaque, buf, count);
+	ssize_t r = 0;
+//	DBGOUT("fio_write(%i, %p, %i)\r\n", fd, buf, count);
+	if (fio_is_open_int(fd)) {
+		if (fio_fds[fd].fdwrite) {
+			r = fio_fds[fd].fdwrite(fio_fds[fd].opaque, buf, count);
+		} else {
+			r = -3;
+		}
 	} else {
-	    r = -3;
+		r = -2;
 	}
-    } else {
-	r = -2;
-    }
-    return r;
+	return r;
 }
 
 off_t fio_seek(int fd, off_t offset, int whence) {
     off_t r = 0;
 //    DBGOUT("fio_seek(%i, %i, %i)\r\n", fd, offset, whence);
-    if (fio_is_open_int(fd)) {
-	if (fio_fds[fd].fdseek) {
-	    r = fio_fds[fd].fdseek(fio_fds[fd].opaque, offset, whence);
+	if (fio_is_open_int(fd)) {
+		if (fio_fds[fd].fdseek) {
+			r = fio_fds[fd].fdseek(fio_fds[fd].opaque, offset, whence);
+		} else {
+			r = -3;
+		}
 	} else {
-	    r = -3;
+		r = -2;
 	}
-    } else {
-	r = -2;
-    }
-    return r;
+	return r;
 }
 
 int fio_close(int fd) {
-    int r = 0;
-//    DBGOUT("fio_close(%i)\r\n", fd);
-    if (fio_is_open_int(fd)) {
-	if (fio_fds[fd].fdclose)
-	    r = fio_fds[fd].fdclose(fio_fds[fd].opaque);
-	xSemaphoreTake(fio_sem, portMAX_DELAY);
-	memset(fio_fds + fd, 0, sizeof(struct fddef_t));
-	xSemaphoreGive(fio_sem);
-    } else {
-	r = -2;
-    }
-    return r;
+	int r = 0;
+//	DBGOUT("fio_close(%i)\r\n", fd);
+	if (fio_is_open_int(fd)) {
+		if (fio_fds[fd].fdclose){
+			r = fio_fds[fd].fdclose(fio_fds[fd].opaque);
+		}
+		xSemaphoreTake(fio_sem, portMAX_DELAY);
+		memset(fio_fds + fd, 0, sizeof(struct fddef_t));
+		xSemaphoreGive(fio_sem);
+	} else {
+		r = -2;
+	}
+	return r;
 }
 
 void fio_set_opaque(int fd, void * opaque) {
-    if (fio_is_open_int(fd))
-	fio_fds[fd].opaque = opaque;
+	if (fio_is_open_int(fd)){
+		fio_fds[fd].opaque = opaque;
+	}
 }
 
 
@@ -247,7 +263,8 @@ static int devfs_open(void * opaque, const char * path, int flags, int mode) {
 	return OPENFAIL;
 }
 
+//it is never actually registered as far as I can tell
 void register_devfs() {
-    DBGOUT("Registering devfs.\r\n");
-    register_fs("dev", devfs_open, NULL);
+//	DBGOUT("Registering devfs.\r\n");
+	register_fs("dev", devfs_open, NULL);
 }
