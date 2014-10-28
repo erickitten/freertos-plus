@@ -10,9 +10,9 @@
 
 //file system handle
 struct fs_t {
-    uint32_t hash;
-    fs_open_t cb;
-    void * opaque;
+	char * path;
+	fs_open_t cb;
+	void * opaque;
 };
 
 //registered file system handles
@@ -23,24 +23,24 @@ __attribute__((constructor)) void fs_init() {
 }
 
 int register_fs(const char * mountpoint, fs_open_t callback, void * opaque) {
-    int i;
-    DBGOUT("register_fs(\"%s\", %p, %p)\r\n", mountpoint, callback, opaque);
+	int i;
+//	DBGOUT("register_fs(\"%s\", %p, %p)\r\n", mountpoint, callback, opaque);
     
-    for (i = 0; i < MAX_FS; i++) {
-        if (!fss[i].cb) {
-            fss[i].hash = hash_djb2((const uint8_t *) mountpoint, -1);
-            fss[i].cb = callback;
-            fss[i].opaque = opaque;
-            return 0;
-        }
-    }
+	for (i = 0; i < MAX_FS; i++) {
+		if (!fss[i].cb) {
+			fss[i].path = mountpoint;//shallow copy
+			fss[i].cb = callback;
+			fss[i].opaque = opaque;
+			return 0;
+		}
+	}
     
-    return -1;
+	return -1;
 }
 
 int fs_open(const char * path, int flags, int mode) {
 	const char * slash;
-	uint32_t hash;
+	const char * fsn;
 	int i;
 
 //	DBGOUT("fs_open(\"%s\", %i, %i)\r\n", path, flags, mode);
@@ -49,19 +49,20 @@ int fs_open(const char * path, int flags, int mode) {
 		path++;
 	}
     
+	fsn = path;
 	slash = strchr(path, '/');
     
 	if (!slash){
 		return OPENFAIL;
 	}
 
-	hash = hash_djb2((const uint8_t *) path, slash - path);
-	//hash(fs_path) , that is , the name of fs
 	// @ /[fs_path]/[file path]
 	path = slash + 1;
 
 	for (i = 0; i < MAX_FS; i++) {
-		if (fss[i].hash == hash){
+		if (!strncmp(fss[i].path,fsn,slash - fsn) && 
+				fss[i].path[slash-fsn] == '\0'){
+			//compare [fs_path] & make sure length is same
 			return fss[i].cb(fss[i].opaque, path, flags, mode);
 		}
 	}

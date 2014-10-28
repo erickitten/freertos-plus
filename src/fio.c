@@ -23,6 +23,7 @@ stdio functions
 for reading & writing through serial interface
  */
 
+//@TODO need futher check
 static ssize_t stdin_read(void * opaque, void * buf, size_t count) {
 	int i=0, endofline=0, last_chr_is_esc;
 	char *ptrbuf=buf;
@@ -60,9 +61,9 @@ static ssize_t stdin_read(void * opaque, void * buf, size_t count) {
 		default:
 			last_chr_is_esc=0;
 			break;
-	}
-	send_byte(ptrbuf[i]);
-	++i;
+		}
+		send_byte(ptrbuf[i]);
+		++i;
 	}
 	return i;
 }

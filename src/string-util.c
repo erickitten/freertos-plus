@@ -74,3 +74,5 @@ int strcmp(const char *a, const char *b)
                 ++a, ++b;
         return *a-*b;
 }
+
+	
