@@ -54,11 +54,38 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
                 continue;
             if (strcmp(ent->d_name, "..") == 0)
                 continue;
+
+			i = ftell(outfile);
+			//placeholder for offset after recursive call is done
+			b = 0;fwrite(&b, 4, 1, outfile);
+			
+			//write spec.info ,which is first file header in directory
+			b = (12 >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (12 >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (12 >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (12 >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+
+			//write size = checksum =0
+			b = 0;fwrite(&b, 4, 1, outfile);
+			fwrite(&b, 4, 1, outfile);
+
             strcat(fullpath, "/");
             //if is directory ,recursive call processdir
             rec_dirp = opendir(fullpath);
             processdir(rec_dirp, fullpath + strlen(prefix) + 1, outfile, prefix);
-            closedir(rec_dirp);
+            //after this is done ,go back to write next filehdr
+			w = ftell(outfile);
+			nextf = ((w-i) & 0xfffffff0) | 0x1;//mapping 0x1 = dir
+			fseek(outfile,i,SEEK_SET);
+
+			b = (nextf >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (nextf >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (nextf >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (nextf >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+
+			fseek(outfile,w,SEEK_SET);//return to original position
+
+			closedir(rec_dirp);
         } else {
             infile = fopen(fullpath, "rb");
             if (!infile) {
@@ -74,7 +101,8 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 			//((n/16) +1)*16
             namesize = (( (i = strlen(ent->d_name)) +1)+16) & 0xfffffff0;
 
-            //find next file pointer (also at 16 byte boundry)
+			//next filehdr
+            //find next file offset (also at 16 byte boundry)
 			nextf = ((16/*header*/+namesize+size)+16) &  0xfffffff0;
 			//add file mapping (regular file 0x2)
 			nextf = nextf |= 0x00000002;
@@ -110,6 +138,7 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
                 fwrite(buf, 1, w, outfile);
                 size -= w;
             }
+//TODO : PAD TO 16 BYTE FOR CONTENT
             fclose(infile);
         }
     }
