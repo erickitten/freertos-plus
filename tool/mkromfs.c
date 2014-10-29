@@ -24,13 +24,18 @@ void usage(const char * binname) {
     exit(-1);
 }
 
+/*
+@DIR : the current dir to be processed
+@curpath : current dir name to be processed
+@outfile : output object file
+@prefix : the starting dir of processing (input dir name)
+*/
 void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * prefix) {
     char fullpath[1024];
     char buf[16 * 1024];
     struct dirent * ent;
     DIR * rec_dirp;
-    uint32_t cur_hash = hash_djb2((const uint8_t *) curpath, hash_init);
-    uint32_t size, w, hash;
+    uint32_t size, w ,namesize ,nextf ,i;
     uint8_t b;
     FILE * infile;
 
@@ -44,32 +49,61 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
     #else
         if (ent->d_type == DT_DIR) {
     #endif
+            //ignore . & ..
             if (strcmp(ent->d_name, ".") == 0)
                 continue;
             if (strcmp(ent->d_name, "..") == 0)
                 continue;
             strcat(fullpath, "/");
+            //if is directory ,recursive call processdir
             rec_dirp = opendir(fullpath);
             processdir(rec_dirp, fullpath + strlen(prefix) + 1, outfile, prefix);
             closedir(rec_dirp);
         } else {
-            hash = hash_djb2((const uint8_t *) ent->d_name, cur_hash);
             infile = fopen(fullpath, "rb");
             if (!infile) {
                 perror("opening input file");
                 exit(-1);
             }
-            b = (hash >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (hash >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (hash >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (hash >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+			//find file size
             fseek(infile, 0, SEEK_END);
             size = ftell(infile);
             fseek(infile, 0, SEEK_SET);
+
+			//padded to 16 byte boundary (including null)
+			//((n/16) +1)*16
+            namesize = (( (i = strlen(ent->d_name)) +1)+16) & 0xfffffff0;
+
+            //find next file pointer (also at 16 byte boundry)
+			nextf = ((16/*header*/+namesize+size)+16) &  0xfffffff0;
+			//add file mapping (regular file 0x2)
+			nextf = nextf |= 0x00000002;
+			//write nextf
+            b = (nextf >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (nextf >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (nextf >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
+            b = (nextf >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+
+			//write spec.info ,which is 0 for file
+			b = 0;fwrite(&b, 4, 1, outfile);
+
+            //write file size
             b = (size >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
             b = (size >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
             b = (size >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
             b = (size >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+
+			//write checksum (not implemented)
+            b = 0;fwrite(&b, 4, 1, outfile);
+
+			//write file name
+			fwrite(ent->d_name,1,i,outfile);
+			b = '\0';
+			for(;namesize - i>0;i++){
+				fwrite(&b,1,1,outfile);
+			}
+
+            //write the file
             while (size) {
                 w = size > 16 * 1024 ? 16 * 1024 : size;
                 fread(buf, 1, w, infile);
@@ -82,10 +116,10 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 }
 
 int main(int argc, char ** argv) {
-    char * binname = *argv++;
+    char * binname = *argv++;	//this program
     char * o;
     char * outname = NULL;
-    char * dirname = ".";
+    char * dirname = ".";	//input dir name ,current if none given
     uint64_t z = 0;
     FILE * outfile;
     DIR * dirp;
