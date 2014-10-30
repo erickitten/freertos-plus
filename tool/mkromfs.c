@@ -96,7 +96,7 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
             fseek(infile, 0, SEEK_END);
             size = ftell(infile);
             fseek(infile, 0, SEEK_SET);
-
+			
 			//padded to 16 byte boundary (including null)
 			//((n/16) +1)*16
             namesize = (( (i = strlen(ent->d_name)) +1)+16) & 0xfffffff0;
@@ -105,7 +105,7 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
             //find next file offset (also at 16 byte boundry)
 			nextf = ((16/*header*/+namesize+size)+16) &  0xfffffff0;
 			//add file mapping (regular file 0x2)
-			nextf = nextf |= 0x00000002;
+			nextf = nextf | 0x00000002;
 			//write nextf
             b = (nextf >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
             b = (nextf >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
@@ -127,10 +127,11 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 			//write file name
 			fwrite(ent->d_name,1,i,outfile);
 			b = '\0';
-			for(;namesize - i>0;i++){
+			for(;(namesize - i)>0;i++){
 				fwrite(&b,1,1,outfile);
 			}
-
+			//required padding for content
+			i = (nextf & 0xfffffff0) - (size+namesize+16);
             //write the file
             while (size) {
                 w = size > 16 * 1024 ? 16 * 1024 : size;
@@ -138,7 +139,12 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
                 fwrite(buf, 1, w, outfile);
                 size -= w;
             }
-//TODO : PAD TO 16 BYTE FOR CONTENT
+			//pad to 16 byte for content
+			b = '\0';
+			for(;i>0;i--){
+				fwrite(&b,1,1,outfile);
+			}
+
             fclose(infile);
         }
     }
