@@ -40,7 +40,7 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
     char buf[16 * 1024];
     struct dirent * ent;
     DIR * rec_dirp;
-    uint32_t size, w ,namesize ,nextf ,i;
+    uint32_t size, w ,namesize ,nextf ,i ,floc;
     FILE * infile;
 
     while ((ent = readdir(dirp))) {
@@ -58,8 +58,11 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
                 continue;
             if (strcmp(ent->d_name, "..") == 0)
                 continue;
+			
+			//file size ,padded to 16 byte
+			namesize = (( (i = strlen(ent->d_name)) +1)+16) & 0xfffffff0;
 
-			i = ftell(outfile);
+			floc = ftell(outfile);
 			//placeholder for offset after recursive call is done
 			write_repeative(0, 4, outfile);
 			
@@ -69,14 +72,17 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 			//write size = checksum =0
 			write_repeative(0,8,outfile);
 
+			fwrite(ent->d_name,1,i,outfile);
+            write_repeative(0,namesize-i,outfile);
+
             strcat(fullpath, "/");
             //if is directory ,recursive call processdir
             rec_dirp = opendir(fullpath);
             processdir(rec_dirp, fullpath + strlen(prefix) + 1, outfile, prefix);
             //after this is done ,go back to write next filehdr
 			w = ftell(outfile);
-			nextf = ((w-i) & 0xfffffff0) | 0x1;//mapping 0x1 = dir
-			fseek(outfile,i,SEEK_SET);
+			nextf = ((w-floc) & 0xfffffff0) | 0x1;//mapping 0x1 = dir
+			fseek(outfile,floc,SEEK_SET);
 
 			write_unaligned(nextf,outfile);
 
@@ -103,6 +109,8 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 			nextf = ((16/*header*/+namesize+size)+16) &  0xfffffff0;
 			//add file mapping (regular file 0x2)
 			nextf = nextf | 0x00000002;
+
+			floc = ftell(outfile);
 			//write nextf
 			write_unaligned(nextf,outfile);
 
@@ -134,6 +142,12 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
             fclose(infile);
         }
     }
+	
+	//no more file ,modify last file's nextf = 0
+	fseek(outfile,floc,SEEK_SET);
+	nextf &= 0x0000000f;//leave file mapping info there
+	write_unaligned(nextf,outfile);
+	fseek(outfile,0,SEEK_END);
 }
 
 int main(int argc, char ** argv) {
@@ -141,7 +155,6 @@ int main(int argc, char ** argv) {
     char * o;
     char * outname = NULL;
     char * dirname = ".";	//input dir name ,current if none given
-    uint64_t z = 0;
     FILE * outfile;
     DIR * dirp;
 
@@ -180,7 +193,6 @@ int main(int argc, char ** argv) {
     }
 
     processdir(dirp, "", outfile, dirname);
-    fwrite(&z, 1, 8, outfile);
     if (outname)
         fclose(outfile);
     closedir(dirp);
