@@ -8,20 +8,25 @@
 #include <dirent.h>
 #include <string.h>
 
-#define hash_init 5381
-
-uint32_t hash_djb2(const uint8_t * str, uint32_t hash) {
-    int c;
-
-    while ((c = *str++))
-        hash = ((hash << 5) + hash) ^ c;
-
-    return hash;
-}
 
 void usage(const char * binname) {
     printf("Usage: %s [-d <dir>] [outfile]\n", binname);
     exit(-1);
+}
+
+void write_unaligned(int i,FILE * fp){
+	uint8_t b = 0;
+	b = (i >>  0) & 0xff; fwrite(&b, 1, 1, fp);
+ 	b = (i >>  8) & 0xff; fwrite(&b, 1, 1, fp);
+ 	b = (i >> 16) & 0xff; fwrite(&b, 1, 1, fp);
+ 	b = (i >> 24) & 0xff; fwrite(&b, 1, 1, fp);
+}
+
+void write_repeative(uint8_t byte,int time,FILE *fp){
+	int i;
+	for(i=0;i < time;i++){
+		fwrite(&byte,1,1,fp);
+	}
 }
 
 /*
@@ -36,7 +41,6 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
     struct dirent * ent;
     DIR * rec_dirp;
     uint32_t size, w ,namesize ,nextf ,i;
-    uint8_t b;
     FILE * infile;
 
     while ((ent = readdir(dirp))) {
@@ -57,17 +61,13 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 
 			i = ftell(outfile);
 			//placeholder for offset after recursive call is done
-			b = 0;fwrite(&b, 4, 1, outfile);
+			write_repeative(0, 4, outfile);
 			
 			//write spec.info ,which is first file header in directory
-			b = (12 >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (12 >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (12 >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (12 >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+			write_unaligned(12,outfile);
 
 			//write size = checksum =0
-			b = 0;fwrite(&b, 4, 1, outfile);
-			fwrite(&b, 4, 1, outfile);
+			write_repeative(0,8,outfile);
 
             strcat(fullpath, "/");
             //if is directory ,recursive call processdir
@@ -78,10 +78,7 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 			nextf = ((w-i) & 0xfffffff0) | 0x1;//mapping 0x1 = dir
 			fseek(outfile,i,SEEK_SET);
 
-			b = (nextf >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (nextf >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (nextf >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (nextf >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+			write_unaligned(nextf,outfile);
 
 			fseek(outfile,w,SEEK_SET);//return to original position
 
@@ -107,29 +104,21 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 			//add file mapping (regular file 0x2)
 			nextf = nextf | 0x00000002;
 			//write nextf
-            b = (nextf >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (nextf >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (nextf >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (nextf >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+			write_unaligned(nextf,outfile);
 
 			//write spec.info ,which is 0 for file
-			b = 0;fwrite(&b, 4, 1, outfile);
+			write_repeative(0,4,outfile);
 
             //write file size
-            b = (size >>  0) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (size >>  8) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (size >> 16) & 0xff; fwrite(&b, 1, 1, outfile);
-            b = (size >> 24) & 0xff; fwrite(&b, 1, 1, outfile);
+			write_unaligned(size,outfile);
 
-			//write checksum (not implemented)
-            b = 0;fwrite(&b, 4, 1, outfile);
+			//write checksum (not implemented ,write 0)
+			write_repeative(0,4,outfile);
 
-			//write file name
+			//write file name ,i == strlen(ent->d_name)
 			fwrite(ent->d_name,1,i,outfile);
-			b = '\0';
-			for(;(namesize - i)>0;i++){
-				fwrite(&b,1,1,outfile);
-			}
+			write_repeative(0,namesize-i,outfile);
+
 			//required padding for content
 			i = (nextf & 0xfffffff0) - (size+namesize+16);
             //write the file
@@ -140,11 +129,8 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
                 size -= w;
             }
 			//pad to 16 byte for content
-			b = '\0';
-			for(;i>0;i--){
-				fwrite(&b,1,1,outfile);
-			}
-
+			write_repeative(0,i,outfile);
+			
             fclose(infile);
         }
     }
