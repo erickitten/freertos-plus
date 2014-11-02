@@ -67,7 +67,7 @@ void processdir(DIR * dirp, const char * curpath, FILE * outfile, const char * p
 			write_repeative(0, 4, outfile);
 			
 			//write spec.info ,which is first file header in directory
-			write_unaligned(12,outfile);
+			write_unaligned(namesize+12,outfile);
 
 			//write size = checksum =0
 			write_repeative(0,8,outfile);

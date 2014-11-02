@@ -10,7 +10,7 @@
 
 //file system handle
 struct fs_t {
-	char * path;
+	const char * path;
 	fs_open_t cb;
 	void * opaque;
 };
