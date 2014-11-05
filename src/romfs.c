@@ -64,6 +64,9 @@ static off_t romfs_seek(void * opaque, off_t offset, int whence) {
     return offset;
 }
 
+/**
+* @finddir : 0=find file / 1=find directory (return entry point)
+**/
 const uint8_t * romfs_get_handle(const uint8_t * romfs, const char * path,int finddir) {
 	const uint8_t * meta;
 	const char *slash;
@@ -72,26 +75,24 @@ const uint8_t * romfs_get_handle(const uint8_t * romfs, const char * path,int fi
 		path++;
 	}
 
-	//if there is more slash ,search the directory
-	//else ,search for file handle
-	slash = strchr(path, '/');
+	if(path[0] == '\0'){//root is to be found
+		return romfs;
+	}
 
+	slash = strchr(path, '/');
+	if(finddir && !slash){
+		//when searching for directory ,if there is no trailing slash
+		//this adds a (fake) slash to not be treated as file
+		slash = path + strlen(path);
+	}
+	
 	for(meta = romfs;;meta += (get_unaligned(meta) & 0xfffffff0)){
 		if((!slash) && strcmp((const char*)meta+16,path) == 0){
-			//file found
-			if((get_unaligned(meta) & 0x0000000f) != 0x2){//not a regular file
-				if(finddir){
-					return meta;
-				}else{
-					return NULL;
-				}
-			}
 			return meta;
-		}else if((slash != NULL) && (!strncmp(path,(const char*)meta+16,slash - path)) && 
-				(meta+16)[slash - path] == '\0'){
+		}else if((slash != NULL) && (!strncmp(path,(const char*)meta+16,slash - path)) && (meta+16)[slash - path] == '\0'){
 			//directory found ,recursive call ,directory location as entry point
 			meta+=4;
-			return romfs_get_handle(meta + get_unaligned(meta),slash,0);
+			return romfs_get_handle(meta + get_unaligned(meta),slash,finddir);
 		}
 		
 		//end of directory

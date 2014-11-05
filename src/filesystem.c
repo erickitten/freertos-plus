@@ -90,21 +90,22 @@ const char* fs_readdir(const char *path){
 	}else{
 		while (path[0] == '/'){
 			path++;
-		}
-    
+		}    
 		fsn = path;
 		slash = strchr(path, '/');
+		if(!slash){
+			slash = path + strlen(path);
+		}
 	
-		if (!slash){
+		if (path[0] == '\0'){//root of system
 			flag=1;previ=0;
-			return fss[previ].path;
+			return fss[previ].path;//show registered filesystems
 		}else{
 			for (i = 0; i < MAX_FS; i++) {
-				if (!strncmp(fss[i].path,fsn,slash - fsn) && 
-					fss[i].path[slash-fsn] == '\0'){
+				if (!strncmp(fss[i].path,fsn,slash - fsn) && fss[i].path[slash-fsn] == '\0'){
 					//compare [fs_path] & make sure length is same
 					flag =0;previ =i;
-					return fss[previ].rd(fss[previ].opaque,NULL);
+					return fss[previ].rd(fss[previ].opaque,slash);
 				}
 			}
 			return NULL;
