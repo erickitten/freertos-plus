@@ -120,7 +120,7 @@ const uint8_t * romfs_get_file_by_name(const uint8_t * romfs, const char * path,
 	return meta+16;
 }
 
-const uint8_t* romfs_readdir(void * opaque,const char * path){
+const char* romfs_readdir(void * opaque,const char * path){
 	static uint8_t * ptr;
 
 	if(path == NULL){
@@ -160,5 +160,5 @@ static int romfs_open(void * opaque, const char * path, int flags, int mode) {
 
 void register_romfs(const char * mountpoint, const uint8_t * romfs) {
 //	DBGOUT("Registering romfs `%s' @ %p\r\n", mountpoint, romfs);
-	register_fs(mountpoint, romfs_open, (void *) romfs);
+	register_fs(mountpoint, romfs_open,romfs_readdir, (void *) romfs);
 }

@@ -267,5 +267,5 @@ static int devfs_open(void * opaque, const char * path, int flags, int mode) {
 //it is never actually registered as far as I can tell
 void register_devfs() {
 //	DBGOUT("Registering devfs.\r\n");
-	register_fs("dev", devfs_open, NULL);
+	register_fs("dev", devfs_open,NULL, NULL);
 }
