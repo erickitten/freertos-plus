@@ -64,7 +64,7 @@ static off_t romfs_seek(void * opaque, off_t offset, int whence) {
     return offset;
 }
 
-const uint8_t * romfs_get_file_by_name(const uint8_t * romfs, const char * path, uint32_t * len) {
+const uint8_t * romfs_get_handle(const uint8_t * romfs, const char * path,int finddir) {
 	const uint8_t * meta;
 	const char *slash;
 
@@ -73,34 +73,66 @@ const uint8_t * romfs_get_file_by_name(const uint8_t * romfs, const char * path,
 	}
 
 	//if there is more slash ,search the directory
-	//else ,search for file
+	//else ,search for file handle
 	slash = strchr(path, '/');
 
 	for(meta = romfs;;meta += (get_unaligned(meta) & 0xfffffff0)){
 		if((!slash) && strcmp((const char*)meta+16,path) == 0){
 			//file found
-			if(len){
-				*len = get_unaligned(meta+8);
+			if((get_unaligned(meta) & 0x0000000f) != 0x2){//not a regular file
+				if(finddir){
+					return meta;
+				}else{
+					return NULL;
+				}
 			}
-			meta += 16;
-			//name length is not written in romfs
-			//look for NULL and go to closest next 16byte
-			while(*(meta+15) != '\0'){
-				meta += 16;
-			}
-			return meta+16;
+			return meta;
 		}else if((slash != NULL) && (!strncmp(path,(const char*)meta+16,slash - path)) && 
 				(meta+16)[slash - path] == '\0'){
 			//directory found ,recursive call ,directory location as entry point
 			meta+=4;
-			return romfs_get_file_by_name(meta + get_unaligned(meta),slash,len);
+			return romfs_get_handle(meta + get_unaligned(meta),slash,0);
 		}
 		
+		//end of directory
 		if(!(get_unaligned(meta) >> 4)){
 			break;
 		}
 	}
 	return NULL;
+}
+
+const uint8_t * romfs_get_file_by_name(const uint8_t * romfs, const char * path, uint32_t * len){
+
+	const uint8_t * meta = (const uint8_t * )romfs_get_handle(romfs,path,0);
+	if(!meta){
+		return NULL;
+	}
+	if(len){
+		*len = get_unaligned(meta+8);
+	}
+	meta += 16;
+	//name length is not written in romfs
+	//look for NULL and go to closest next 16byte
+	while(*(meta+15) != '\0'){
+		meta += 16;
+	}
+	return meta+16;
+}
+
+const uint8_t* romfs_readdir(void * opaque,const char * path){
+	static uint8_t * ptr;
+
+	if(path == NULL){
+		if((get_unaligned(ptr) & 0xfffffff0) == 0){
+			return NULL;
+		}
+		ptr += (get_unaligned(ptr) & 0xfffffff0);
+	}else{
+		 ptr = romfs_get_handle(opaque,path,1);
+	}
+
+	return (ptr+16);
 }
 
 
