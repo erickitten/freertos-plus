@@ -64,7 +64,19 @@ int parse_command(char *str, char *argv[]){
 }
 
 void ls_command(int n, char *argv[]){
+	const char* tmp;	
+	
+	fio_printf(1, "\r\n");
+	if(n==1){
+		fio_printf(2, "\r\nUsage: ls <dirpath>\r\n");
+		return;
+	}
 
+	tmp =  fs_readdir(argv[1]);
+	for(;tmp != NULL;tmp = fs_readdir(NULL)){
+		fio_printf(1, "%s\t",tmp);
+	}
+	fio_printf(1, "\r\n");
 }
 
 int filedump(const char *filename){
@@ -84,6 +96,7 @@ int filedump(const char *filename){
 	}
 
 	fio_close(fd);
+	fio_printf(1, "\r\n");
 	return 1;
 }
 
